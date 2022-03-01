@@ -23,6 +23,11 @@ namespace NBinaryFormatMapper
 		readonly IntPtr m_OriginAddress;
 
 		/// <summary>
+		/// Access to underlying bytes array.
+		/// </summary>
+		public byte[] Bytes => m_Bytes;
+
+		/// <summary>
 		/// Constructor "pins" bytes in memory (see <see cref="GCHandleType.Pinned"/>).
 		/// </summary>
 		/// <param name="bytes">Bytes to work with</param>
@@ -39,7 +44,7 @@ namespace NBinaryFormatMapper
 		/// <param name="pathToFile">Path to file</param>
 		/// <returns>New <see cref="StructMapper"/> over file content.</returns>
 		public static StructMapper FromFile(string pathToFile) =>
-			new (File.ReadAllBytes(pathToFile));
+			new(File.ReadAllBytes(pathToFile));
 
 		/// <summary>
 		/// Reads all bytes from file and creates mapper on them (async version).
@@ -49,14 +54,14 @@ namespace NBinaryFormatMapper
 		public static async Task<StructMapper> FromFileAsync(string pathToFile)
 		{
 			byte[] bytes = await File.ReadAllBytesAsync(pathToFile).ConfigureAwait(false);
-			return new (bytes);
+			return new(bytes);
 		}
 
-        public void Dispose()
-        {
-            m_GCHandle.Free();
+		public void Dispose()
+		{
+			m_GCHandle.Free();
 			GC.SuppressFinalize(this);
-        }
+		}
 
 		/// <summary>
 		/// Copies bytes at given offset to the structure.
@@ -67,12 +72,19 @@ namespace NBinaryFormatMapper
 		/// <typeparam name="T">Structure type</typeparam>
 		/// <param name="offset">Offset in underlying memory bytes, starting from 0</param>
 		/// <returns>Structure (copy of bytes)</returns>
-        public T Read<T>(int offset) where T : struct =>
+		public T Read<T>(int offset) where T : struct =>
 			(T)Marshal.PtrToStructure(m_OriginAddress + offset, typeof(T));
 
-		public IEnumerable<T> ReadMany<T>(int offset, int recordSize, int count) where T : struct
+		public IntPtr GetPointer(int offset) => m_OriginAddress + offset;
+
+		public IEnumerable<T> ReadMultiple<T>(int offset, int recordSize, int count) where T : struct
 		{
-			IntPtr pointer = m_OriginAddress + offset;
+			IntPtr pointer = GetPointer(offset);
+			return ReadMultiple<T>(pointer, recordSize, count);
+		}
+
+		public static IEnumerable<T> ReadMultiple<T>(IntPtr pointer, int recordSize, int count) where T : struct
+		{
 			for (int idx = 0; idx < count; idx++)
 			{
 				yield return (T)Marshal.PtrToStructure(pointer, typeof(T));
