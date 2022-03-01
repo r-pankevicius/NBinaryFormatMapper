@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Used under MIT License, see https://github.com/r-pankevicius/NBinaryFormatMapper
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
