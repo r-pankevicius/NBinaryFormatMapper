@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace NBinaryFormatMapper
 {
@@ -16,6 +17,10 @@ namespace NBinaryFormatMapper
 		readonly GCHandle m_GCHandle;
 		readonly IntPtr m_OriginAddress;
 
+		/// <summary>
+		/// Constructor "pins" bytes in memory (see <see cref="GCHandleType.Pinned"/>).
+		/// </summary>
+		/// <param name="bytes">Bytes to work with</param>
 		public StructMapper(byte[] bytes)
 		{
 			m_Bytes = bytes;
@@ -23,9 +28,25 @@ namespace NBinaryFormatMapper
 			m_OriginAddress = m_GCHandle.AddrOfPinnedObject();
 		}
 
-		public static StructMapper CreateFileMapper(string pathToFile) =>
+		/// <summary>
+		/// Reads all bytes from file and creates mapper on them.
+		/// </summary>
+		/// <param name="pathToFile">Path to file</param>
+		/// <returns>New <see cref="StructMapper"/> over file content.</returns>
+		public static StructMapper FromFile(string pathToFile) =>
 			new StructMapper(File.ReadAllBytes(pathToFile));
 
+		/// <summary>
+		/// Reads all bytes from file and creates mapper on them (async version).
+		/// </summary>
+		/// <param name="pathToFile">Path to file</param>
+		/// <returns>New <see cref="StructMapper"/> over file content.</returns>
+		public static async Task<StructMapper> FromFileAsync(string pathToFile)
+		{
+			byte[] bytes = await File.ReadAllBytesAsync(pathToFile).ConfigureAwait(false);
+			return new StructMapper(bytes);
+		}
+		
 		public void Dispose() => m_GCHandle.Free();
 
 		public T Read<T>(int offset) where T : struct =>
