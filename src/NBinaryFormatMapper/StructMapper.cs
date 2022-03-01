@@ -10,9 +10,12 @@ using System.Threading.Tasks;
 namespace NBinaryFormatMapper
 {
 	/// <summary>
-	/// Helps to map memory bytes to structs.
-	/// Mark structure layout using <see cref="StructLayoutAttribute"/> attribute.
+	/// Provides read only access mapping to structs over memory bytes.
+	/// Memory is allocated with GC pinning.
 	/// </summary>
+	/// <remarks>
+	/// Tip: mark structure layout using <see cref="StructLayoutAttribute"/> attribute.
+	/// </remarks>
 	public class StructMapper : IDisposable
 	{
 		readonly byte[] m_Bytes;
@@ -36,7 +39,7 @@ namespace NBinaryFormatMapper
 		/// <param name="pathToFile">Path to file</param>
 		/// <returns>New <see cref="StructMapper"/> over file content.</returns>
 		public static StructMapper FromFile(string pathToFile) =>
-			new StructMapper(File.ReadAllBytes(pathToFile));
+			new (File.ReadAllBytes(pathToFile));
 
 		/// <summary>
 		/// Reads all bytes from file and creates mapper on them (async version).
@@ -46,12 +49,25 @@ namespace NBinaryFormatMapper
 		public static async Task<StructMapper> FromFileAsync(string pathToFile)
 		{
 			byte[] bytes = await File.ReadAllBytesAsync(pathToFile).ConfigureAwait(false);
-			return new StructMapper(bytes);
+			return new (bytes);
 		}
-		
-		public void Dispose() => m_GCHandle.Free();
 
-		public T Read<T>(int offset) where T : struct =>
+        public void Dispose()
+        {
+            m_GCHandle.Free();
+			GC.SuppressFinalize(this);
+        }
+
+		/// <summary>
+		/// Copies bytes at given offset to the structure.
+		/// <para>
+		/// Note: changing fields of returned structure doesn't change underlying bytes.
+		/// </para>
+		/// </summary>
+		/// <typeparam name="T">Structure type</typeparam>
+		/// <param name="offset">Offset in underlying memory bytes, starting from 0</param>
+		/// <returns>Structure (copy of bytes)</returns>
+        public T Read<T>(int offset) where T : struct =>
 			(T)Marshal.PtrToStructure(m_OriginAddress + offset, typeof(T));
 
 		public IEnumerable<T> ReadMany<T>(int offset, int recordSize, int count) where T : struct
